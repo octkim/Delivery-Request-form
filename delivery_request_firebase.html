@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>납품 준비 요청 | Candela Korea</title>
+<style>
+  :root {
+    --bg: #f7f6f3; --surface: #ffffff; --text: #1a1a18; --muted: #6b6a64;
+    --hint: #9a988f; --border: rgba(0,0,0,0.12); --border-2: rgba(0,0,0,0.22);
+    --info-bg: #e6f1fb; --info-text: #0c447c; --info-border: #378add;
+    --danger: #a32d2d; --radius: 12px; --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", sans-serif;
+    line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+  .narrow { max-width: 420px; margin: 3rem auto; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 0; }
+  p.sub { font-size: 14px; color: var(--muted); margin: 0 0 1.5rem; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
+  input, textarea, select, button {
+    font-family: inherit; font-size: 14px; color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface); padding: 9px 12px; outline: none; width: 100%;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--info-border); box-shadow: 0 0 0 3px rgba(55,138,221,0.15); }
+  textarea { resize: vertical; }
+  button { width: auto; cursor: pointer; transition: background .12s; }
+  button:hover { background: #f0efea; }
+  button:active { transform: scale(0.98); }
+  .btn-primary { background: var(--info-bg); color: var(--info-text); border-color: var(--info-border); font-weight: 600; }
+  .btn-primary:hover { background: #d9e9fa; }
+  .btn-danger { color: var(--danger); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem 1rem; }
+  .wide { grid-column: 1 / -1; }
+  .row-between { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .badge { background: var(--info-bg); color: var(--info-text); font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: var(--radius-sm); white-space: nowrap; }
+  .stat { background: #efeee9; border-radius: var(--radius-sm); padding: 1rem; }
+  .stat .lbl { font-size: 13px; color: var(--muted); margin: 0 0 4px; }
+  .stat .val { font-size: 24px; font-weight: 600; margin: 0; }
+  table { width: 100%; font-size: 13.5px; border-collapse: collapse; }
+  .rec-row td { border-top: 1px solid var(--border); padding: 7px 0; vertical-align: top; }
+  .rec-row td.k { color: var(--muted); padding-right: 12px; white-space: nowrap; width: 90px; }
+  a { color: var(--info-text); }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--info-bg); color: var(--info-text); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex-shrink: 0; }
+  .empty { text-align: center; color: var(--muted); font-size: 14px; padding: 2rem 1.5rem; }
+  .err { font-size: 13px; color: var(--danger); margin: 10px 0 0; }
+  .hint { font-size: 12px; color: var(--hint); margin: 6px 0 0; }
+  .status { font-size: 12px; color: var(--muted); text-align: center; padding: 10px; }
+  .field-err { border-color: var(--danger) !important; box-shadow: 0 0 0 3px rgba(163,45,45,0.12) !important; }
+  .actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+  .actions button { font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="root"><div class="status">불러오는 중…</div></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+// ════════════════════════════════════════════════════════════════
+//  1. FIREBASE 설정 — 아래 firebaseConfig를 본인 프로젝트 값으로 교체하세요.
+//     (Firebase 콘솔 → 프로젝트 설정 → "내 앱"에서 복사)
+// ════════════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyDZr4OPQnPioixBH8WjhcBiZiMzuRCc0CI",
+  authDomain: "candela-delivery-request.firebaseapp.com",
+  databaseURL: "https://candela-delivery-request-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "candela-delivery-request",
+  storageBucket: "candela-delivery-request.firebasestorage.app",
+  messagingSenderId: "1021987278773",
+  appId: "1:1021987278773:web:25ed2e9e4a08a86fc6d3fc"
+};
+
+// 관리자 전환용 PIN — 본인만 아는 값으로 바꾸세요.
+const ADMIN_PIN = "candela";
+// ════════════════════════════════════════════════════════════════
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const requestsRef = db.ref("deliveryRequests");
+
+const FIELDS = [
+  { key: "hospital", label: "병원명", placeholder: "뷰티앤영의원 강남", required: true },
+  { key: "equipment", label: "장비", placeholder: "GMPP", required: true },
+  { key: "config", label: "구성", placeholder: "small, medium, AIO(DCD), DCD 3box", required: true, wide: true },
+  { key: "price", label: "가격 (VAT포함)", placeholder: "180,000,000", required: true },
+  { key: "deposit", label: "계약금 입금 여부", placeholder: "10,000,000 (6/1 입금 완료)" },
+  { key: "location", label: "납품장소", placeholder: "서울 강남구 강남대로 616 신사미타워 2층", required: true, wide: true },
+  { key: "deliveryDate", label: "납품일자", type: "date", required: true },
+  { key: "deliveryTime", label: "납품시간", type: "time", required: true },
+  { key: "sfdcNumber", label: "SFDC Quote 번호", placeholder: "00206282" },
+  { key: "sfdcUrl", label: "SFDC Quote 링크", placeholder: "https://candelamedical.my.salesforce.com/..." },
+  { key: "note", label: "비고 / 메모", placeholder: "특이사항을 입력하세요", textarea: true, wide: true },
+];
+
+let state = { user: null, isAdmin: false, requests: [], pinMode: false, editingId: null, form: blankForm(), query: "", repFilter: "all", errors: {} };
+
+function blankForm() {
+  return { hospital: "", equipment: "", config: "", price: "", location: "", deliveryDate: "", deliveryTime: "", deposit: "", sfdcNumber: "", sfdcUrl: "", note: "" };
+}
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function fmtPrice(v) { if (!v) return ""; const d = String(v).replace(/[^\d]/g, ""); return d ? "₩" + Number(d).toLocaleString("ko-KR") : v; }
+function fmtDate(d) {
+  if (!d) return "—";
+  const date = new Date(d + "T00:00:00"); const days = ["일","월","화","수","목","금","토"];
+  return `${date.getFullYear()}년 ${String(date.getMonth()+1).padStart(2,"0")}월 ${String(date.getDate()).padStart(2,"0")}일 ${days[date.getDay()]}요일`;
+}
+function fmtTime(t) {
+  if (!t) return ""; const [h,m] = t.split(":").map(Number);
+  const ampm = h < 12 ? "오전" : "오후"; const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${ampm} ${h12}시${m ? " " + m + "분" : ""}`;
+}
+
+requestsRef.on("value", (snap) => {
+  const val = snap.val() || {};
+  state.requests = Object.keys(val).map((id) => ({ id, ...val[id] }));
+  render();
+}, (err) => {
+  document.getElementById("root").innerHTML = `<div class="wrap"><div class="card err">데이터 연결에 실패했습니다. firebaseConfig 값과 데이터베이스 규칙을 확인해주세요.<br><br>${esc(err.message)}</div></div>`;
+});
+
+function render() {
+  const root = document.getElementById("root");
+  if (!state.user) { root.innerHTML = loginHTML(); bindLogin(); return; }
+  root.innerHTML = `<div class="wrap">${topBarHTML()}${state.isAdmin ? adminHTML() : repHTML()}</div>`;
+  bindApp();
+}
+
+function loginHTML() {
+  return `<div class="wrap narrow">
+    <h1>납품 준비 요청</h1>
+    <p class="sub">담당자 이름과 비밀번호를 입력하면 본인 요청 내역을 확인하고 등록할 수 있습니다.</p>
+    <div class="card">
+      <label>담당자 이름</label>
+      <input id="li-name" placeholder="홍길동" style="margin-bottom:1rem" />
+      <label>비밀번호</label>
+      <input id="li-pw" type="password" placeholder="본인 이름을 입력" />
+      <p class="hint">비밀번호는 본인 이름과 동일하게 입력하세요.</p>
+      <p class="err" id="li-err" style="display:none"></p>
+      <button class="btn-primary" id="li-go" style="width:100%; margin-top:1.25rem">시작하기</button>
+    </div>
+  </div>`;
+}
+function bindLogin() {
+  const go = () => {
+    const name = document.getElementById("li-name").value.trim();
+    const pw = document.getElementById("li-pw").value.trim();
+    const err = document.getElementById("li-err");
+    if (!name || !pw) { err.textContent = "이름과 비밀번호를 모두 입력해주세요."; err.style.display = "block"; return; }
+    if (name !== pw) { err.textContent = "비밀번호는 본인 이름과 동일하게 입력해주세요."; err.style.display = "block"; return; }
+    state.user = { name }; render();
+  };
+  document.getElementById("li-go").onclick = go;
+  document.getElementById("li-pw").onkeydown = (e) => { if (e.key === "Enter") go(); };
+}
+
+function topBarHTML() {
+  const u = state.user;
+  return `<div style="margin-bottom:1.5rem">
+    <div class="row-between">
+      <div style="display:flex; align-items:center; gap:10px">
+        <div class="avatar">${esc(u.name.slice(0,1))}</div>
+        <div>
+          <p style="font-size:15px; font-weight:600; margin:0">${esc(u.name)}</p>
+          <p style="font-size:12px; color:var(--muted); margin:0">${state.isAdmin ? "관리자 · 전체 보기" : "영업 담당자"}</p>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px">
+        <button id="tb-admin" class="${state.isAdmin ? "btn-primary" : ""}">${state.isAdmin ? "영업사원 화면" : "관리자 보기"}</button>
+        <button id="tb-logout">로그아웃</button>
+      </div>
+    </div>
+    ${state.pinMode && !state.isAdmin ? `
+    <div style="margin-top:12px; display:flex; gap:8px; align-items:center; background:#efeee9; padding:10px 12px; border-radius:var(--radius-sm); flex-wrap:wrap">
+      <span style="font-size:13px; color:var(--muted)">관리자 PIN</span>
+      <input id="tb-pin" type="password" placeholder="PIN" style="width:140px" />
+      <button id="tb-pin-ok">확인</button>
+      <button id="tb-pin-cancel">취소</button>
+      <span id="tb-pin-err" class="err" style="margin:0; display:none">PIN이 올바르지 않습니다</span>
+    </div>` : ""}
+  </div>`;
+}
+
+function formCardHTML(title, submitLabel) {
+  const f = state.form, e = state.errors;
+  const fields = FIELDS.map((fd) => {
+    const cls = e[fd.key] ? "field-err" : "";
+    const inner = fd.textarea
+      ? `<textarea data-k="${fd.key}" class="${cls}" rows="2" placeholder="${esc(fd.placeholder)}">${esc(f[fd.key])}</textarea>`
+      : `<input data-k="${fd.key}" class="${cls}" type="${fd.type || "text"}" placeholder="${esc(fd.placeholder || "")}" value="${esc(f[fd.key])}" />`;
+    return `<div class="${fd.wide ? "wide" : ""}"><label>${esc(fd.label)} ${fd.required ? '<span style="color:var(--danger)">*</span>' : ""}</label>${inner}</div>`;
+  }).join("");
+  return `<div class="card">
+    <div class="row-between" style="margin-bottom:1rem">
+      <h2>${esc(title)}</h2>
+      ${state.editingId ? '<button id="f-cancel">취소</button>' : ""}
+    </div>
+    <div class="grid">${fields}</div>
+    <button class="btn-primary" id="f-submit" style="margin-top:1.25rem">${esc(submitLabel)}</button>
+  </div>`;
+}
+
+function recordCardHTML(r, opts) {
+  const o = opts || {};
+  const rows = [
+    ["구성", esc(r.config)],
+    ["가격", esc(fmtPrice(r.price))],
+    ["계약금", esc(r.deposit)],
+    ["납품장소", esc(r.location)],
+    ["SFDC Quote", r.sfdcUrl ? `<a href="${esc(r.sfdcUrl)}" target="_blank" rel="noopener">${esc(r.sfdcNumber || r.sfdcUrl)} ↗</a>` : esc(r.sfdcNumber)],
+    ["비고", esc(r.note)],
+  ].filter(([, v]) => v).map(([k, v]) => `<tr class="rec-row"><td class="k">${k}</td><td>${v}</td></tr>`).join("");
+  return `<div class="card">
+    <div class="row-between" style="align-items:flex-start; margin-bottom:12px">
+      <div>
+        <p style="font-size:16px; font-weight:600; margin:0 0 2px">${esc(r.hospital)}</p>
+        <p style="font-size:13px; color:var(--muted); margin:0">${esc(r.equipment)}${o.showRep && r.repName ? " · 담당 " + esc(r.repName) : ""}</p>
+      </div>
+      <span class="badge">${fmtDate(r.deliveryDate)} ${fmtTime(r.deliveryTime)}</span>
+    </div>
+    <table><tbody>${rows}</tbody></table>
+    <div class="actions">
+      ${o.canEdit ? `<button data-edit="${r.id}"> 수정</button>` : ""}
+      <button class="btn-danger" data-del="${r.id}"> 삭제</button>
+    </div>
+  </div>`;
+}
+
+function repHTML() {
+  const mine = state.requests
+    .filter((r) => r.repName === state.user.name)
+    .sort((a, b) => (a.deliveryDate || "z").localeCompare(b.deliveryDate || "z") || (a.deliveryTime || "").localeCompare(b.deliveryTime || ""));
+  const list = mine.length === 0
+    ? `<div class="card empty">아직 등록한 요청이 없습니다. 위 폼에서 등록해보세요.</div>`
+    : mine.map((r) => recordCardHTML(r, { canEdit: true })).join("");
+  return formCardHTML(state.editingId ? "요청 수정" : "새 요청 등록", state.editingId ? "수정 저장" : "요청 등록")
+    + `<h2 style="margin-bottom:0.75rem">내 요청 내역 (${mine.length}건)</h2>` + list;
+}
+
+function adminHTML() {
+  const reps = Array.from(new Set(state.requests.map((r) => r.repName).filter(Boolean)));
+  const q = state.query.trim().toLowerCase();
+  const sorted = state.requests
+    .filter((r) => state.repFilter === "all" || r.repName === state.repFilter)
+    .filter((r) => !q || [r.hospital, r.equipment, r.repName].some((v) => String(v || "").toLowerCase().includes(q)))
+    .sort((a, b) => (a.deliveryDate || "z").localeCompare(b.deliveryDate || "z") || (a.deliveryTime || "").localeCompare(b.deliveryTime || ""));
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = state.requests.filter((r) => r.deliveryDate && r.deliveryDate >= today).length;
+  const opts = `<option value="all">전체 담당자</option>` + reps.map((r) => `<option value="${esc(r)}" ${state.repFilter === r ? "selected" : ""}>${esc(r)}</option>`).join("");
+  const list = sorted.length === 0
+    ? `<div class="card empty">${state.requests.length === 0 ? "등록된 요청이 없습니다." : "검색 결과가 없습니다."}</div>`
+    : sorted.map((r) => recordCardHTML(r, { showRep: true })).join("");
+  return `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:1.5rem">
+      <div class="stat"><p class="lbl">전체 요청</p><p class="val">${state.requests.length}건</p></div>
+      <div class="stat"><p class="lbl">예정된 납품</p><p class="val">${upcoming}건</p></div>
+      <div class="stat"><p class="lbl">영업사원 수</p><p class="val">${reps.length}명</p></div>
+    </div>
+    <div class="row-between" style="margin-bottom:0.75rem">
+      <h2>전체 요청 (납품일순)</h2>
+      <div style="display:flex; gap:8px">
+        <select id="ad-rep" style="width:130px">${opts}</select>
+        <input id="ad-q" placeholder="병원·장비·담당자 검색" value="${esc(state.query)}" style="width:200px" />
+      </div>
+    </div>${list}`;
+}
+
+function readForm() {
+  document.querySelectorAll("[data-k]").forEach((el) => { state.form[el.getAttribute("data-k")] = el.value; });
+}
+
+function bindApp() {
+  document.getElementById("tb-admin").onclick = () => {
+    if (state.isAdmin) { state.isAdmin = false; render(); }
+    else { state.pinMode = true; render(); }
+  };
+  document.getElementById("tb-logout").onclick = () => { state = { ...state, user: null, isAdmin: false, pinMode: false, editingId: null, form: blankForm(), errors: {} }; render(); };
+
+  const pinOk = document.getElementById("tb-pin-ok");
+  if (pinOk) {
+    const submit = () => {
+      if (document.getElementById("tb-pin").value === ADMIN_PIN) { state.isAdmin = true; state.pinMode = false; render(); }
+      else document.getElementById("tb-pin-err").style.display = "inline";
+    };
+    pinOk.onclick = submit;
+    document.getElementById("tb-pin").onkeydown = (e) => { if (e.key === "Enter") submit(); };
+    document.getElementById("tb-pin-cancel").onclick = () => { state.pinMode = false; render(); };
+  }
+
+  document.querySelectorAll("[data-k]").forEach((el) => {
+    el.oninput = () => { state.form[el.getAttribute("data-k")] = el.value; if (state.errors[el.getAttribute("data-k")]) { state.errors[el.getAttribute("data-k")] = false; el.classList.remove("field-err"); } };
+  });
+
+  const submitBtn = document.getElementById("f-submit");
+  if (submitBtn) submitBtn.onclick = onSubmit;
+  const cancelBtn = document.getElementById("f-cancel");
+  if (cancelBtn) cancelBtn.onclick = () => { state.editingId = null; state.form = blankForm(); state.errors = {}; render(); };
+
+  document.querySelectorAll("[data-edit]").forEach((b) => {
+    b.onclick = () => {
+      const r = state.requests.find((x) => x.id === b.getAttribute("data-edit"));
+      if (r) { state.form = { ...blankForm(), ...r }; state.editingId = r.id; state.errors = {}; render(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    };
+  });
+  document.querySelectorAll("[data-del]").forEach((b) => {
+    b.onclick = () => { if (confirm("이 요청을 삭제할까요?")) requestsRef.child(b.getAttribute("data-del")).remove(); };
+  });
+
+  const adRep = document.getElementById("ad-rep");
+  if (adRep) adRep.onchange = () => { state.repFilter = adRep.value; render(); };
+  const adQ = document.getElementById("ad-q");
+  if (adQ) adQ.oninput = () => { state.query = adQ.value; const list = document.querySelectorAll(".card"); render(); const nq = document.getElementById("ad-q"); if (nq) { nq.focus(); nq.setSelectionRange(nq.value.length, nq.value.length); } };
+}
+
+function onSubmit() {
+  readForm();
+  const errs = {};
+  FIELDS.forEach((f) => { if (f.required && !String(state.form[f.key]).trim()) errs[f.key] = true; });
+  state.errors = errs;
+  if (Object.keys(errs).length) { render(); return; }
+
+  if (state.editingId) {
+    requestsRef.child(state.editingId).update({ ...state.form });
+    state.editingId = null;
+  } else {
+    requestsRef.push({ ...state.form, repName: state.user.name, createdAt: Date.now() });
+  }
+  state.form = blankForm(); state.errors = {};
+  render();
+}
+</script>
+</body>
+</html>
