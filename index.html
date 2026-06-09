@@ -63,6 +63,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
 // ════════════════════════════════════════════════════════════════
 //  1. FIREBASE 설정 — 아래 firebaseConfig를 본인 프로젝트 값으로 교체하세요.
@@ -80,11 +81,49 @@ const firebaseConfig = {
 
 // 관리자 전환용 PIN — 본인만 아는 값으로 바꾸세요.
 const ADMIN_PIN = "1030";
+
+// ════════════════════════════════════════════════════════════════
+//  2. EMAILJS 설정 — 새 요청 등록 시 자동 메일 알림.
+//     EmailJS 가입 후 받은 값 3개를 넣으세요. (아래 안내 참고)
+//     값을 비워두면 메일 없이 등록만 됩니다.
+// ════════════════════════════════════════════════════════════════
+const EMAILJS_PUBLIC_KEY = "_dOBMw9XifUwMA3Lj";
+const EMAILJS_SERVICE_ID = "service_cqq6auk";
+const EMAILJS_TEMPLATE_ID = "template_w9dqcpx";
+const NOTIFY_EMAIL = "bohyunk@candelamedical.com";  // 알림 받을 주소
+// ════════════════════════════════════════════════════════════════
 // ════════════════════════════════════════════════════════════════
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const requestsRef = db.ref("deliveryRequests");
+
+const EMAILJS_READY = EMAILJS_PUBLIC_KEY && EMAILJS_PUBLIC_KEY.indexOf("여기에") === -1;
+if (EMAILJS_READY && window.emailjs) { emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY }); }
+
+function sendNotifyEmail(r) {
+  if (!EMAILJS_READY || !window.emailjs) return;
+  const subject = `${r.repName} 새 장비 납품 요청 등록됨`;
+  const body =
+    `담당자: ${r.repName}\n` +
+    `병원명: ${r.hospital}\n` +
+    `장비: ${r.equipment}\n` +
+    `구성: ${r.config}\n` +
+    `가격: ${fmtPrice(r.price)}\n` +
+    `계약금: ${r.deposit || "-"}\n` +
+    `납품장소: ${r.location}\n` +
+    `납품일자: ${fmtDate(r.deliveryDate)} ${r.deliveryTime || ""}\n` +
+    `SFDC: ${r.sfdcNumber || "-"} ${r.sfdcUrl || ""}\n` +
+    `비고: ${r.note || "-"}`;
+  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    to_email: NOTIFY_EMAIL,
+    subject: subject,
+    name: r.repName,
+    rep_name: r.repName,
+    hospital: r.hospital,
+    message: body,
+  }).catch((err) => console.error("메일 발송 실패:", err));
+}
 
 const FIELDS = [
   { key: "hospital", label: "병원명", placeholder: "뷰티앤영의원 강남", required: true },
@@ -94,7 +133,7 @@ const FIELDS = [
   { key: "deposit", label: "계약금 입금 여부", placeholder: "10,000,000 (6/1 입금 완료)" },
   { key: "location", label: "납품장소", placeholder: "서울 강남구 강남대로 616 신사미타워 2층", required: true, wide: true },
   { key: "deliveryDate", label: "납품일자", type: "date", required: true },
-  { key: "deliveryTime", label: "납품시간", type: "time", required: true },
+  { key: "deliveryTime", label: "납품시간", placeholder: "오전 10시", required: true },
   { key: "sfdcNumber", label: "SFDC Quote 번호", placeholder: "00206282" },
   { key: "sfdcUrl", label: "SFDC Quote 링크", placeholder: "https://candelamedical.my.salesforce.com/..." },
   { key: "note", label: "비고 / 메모", placeholder: "특이사항을 입력하세요", textarea: true, wide: true },
@@ -112,11 +151,7 @@ function fmtDate(d) {
   const date = new Date(d + "T00:00:00"); const days = ["일","월","화","수","목","금","토"];
   return `${date.getFullYear()}년 ${String(date.getMonth()+1).padStart(2,"0")}월 ${String(date.getDate()).padStart(2,"0")}일 ${days[date.getDay()]}요일`;
 }
-function fmtTime(t) {
-  if (!t) return ""; const [h,m] = t.split(":").map(Number);
-  const ampm = h < 12 ? "오전" : "오후"; const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${ampm} ${h12}시${m ? " " + m + "분" : ""}`;
-}
+function fmtTime(t) { return t || ""; }
 
 requestsRef.on("value", (snap) => {
   const val = snap.val() || {};
@@ -141,8 +176,11 @@ function loginHTML() {
       <label>담당자 이름</label>
       <input id="li-name" placeholder="홍길동" style="margin-bottom:1rem" />
       <label>비밀번호</label>
-      <input id="li-pw" type="password" placeholder="본인 이름을 입력" />
-      <p class="hint">비밀번호는 본인 이름과 동일하게 입력하세요.</p>
+      <div style="position:relative">
+        <input id="li-pw" type="password" placeholder="본인 이름을 입력" style="padding-right:52px" />
+        <button id="li-toggle" type="button" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); width:auto; padding:4px 8px; font-size:12px; border:none; background:transparent; color:var(--muted)">보기</button>
+      </div>
+      <p class="hint">비밀번호는 본인 이름과 동일하게 입력하세요. (한글 이름이면 한글로, 둘 다 같게)</p>
       <p class="err" id="li-err" style="display:none"></p>
       <button class="btn-primary" id="li-go" style="width:100%; margin-top:1.25rem">시작하기</button>
     </div>
@@ -159,6 +197,12 @@ function bindLogin() {
   };
   document.getElementById("li-go").onclick = go;
   document.getElementById("li-pw").onkeydown = (e) => { if (e.key === "Enter") go(); };
+  const tg = document.getElementById("li-toggle");
+  if (tg) tg.onclick = () => {
+    const pw = document.getElementById("li-pw");
+    if (pw.type === "password") { pw.type = "text"; tg.textContent = "숨기기"; }
+    else { pw.type = "password"; tg.textContent = "보기"; }
+  };
 }
 
 function topBarHTML() {
@@ -195,7 +239,7 @@ function formCardHTML(title, submitLabel) {
     const inner = fd.textarea
       ? `<textarea data-k="${fd.key}" class="${cls}" rows="2" placeholder="${esc(fd.placeholder)}">${esc(f[fd.key])}</textarea>`
       : `<input data-k="${fd.key}" class="${cls}" type="${fd.type || "text"}" placeholder="${esc(fd.placeholder || "")}" value="${esc(f[fd.key])}" />`;
-    return `<div class="${fd.wide ? "wide" : ""}"><label>${esc(fd.label)} ${fd.required ? '<span style="color:var(--danger)">*</span>' : ""}</label>${inner}</div>`;
+    return `<div class="${fd.wide ? "wide" : ""}"><label${fd.required ? ' style="font-weight:700; color:var(--text)"' : ""}>${esc(fd.label)} ${fd.required ? '<span style="color:var(--danger)">*</span>' : ""}</label>${inner}</div>`;
   }).join("");
   return `<div class="card">
     <div class="row-between" style="margin-bottom:1rem">
@@ -240,7 +284,7 @@ function repHTML() {
   const list = mine.length === 0
     ? `<div class="card empty">아직 등록한 요청이 없습니다. 위 폼에서 등록해보세요.</div>`
     : mine.map((r) => recordCardHTML(r, { canEdit: true })).join("");
-  return formCardHTML(state.editingId ? "요청 수정" : "새 요청 등록", state.editingId ? "수정 저장" : "요청 등록")
+  return formCardHTML(state.editingId ? "요청 수정" : "새 장비 납품 요청 등록", state.editingId ? "수정 저장" : "요청 등록")
     + `<h2 style="margin-bottom:0.75rem">내 요청 내역 (${mine.length}건)</h2>` + list;
 }
 
@@ -329,7 +373,9 @@ function onSubmit() {
     requestsRef.child(state.editingId).update({ ...state.form });
     state.editingId = null;
   } else {
-    requestsRef.push({ ...state.form, repName: state.user.name, createdAt: Date.now() });
+    const newRec = { ...state.form, repName: state.user.name, createdAt: Date.now() };
+    requestsRef.push(newRec);
+    sendNotifyEmail(newRec);
   }
   state.form = blankForm(); state.errors = {};
   render();
