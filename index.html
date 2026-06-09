@@ -56,7 +56,26 @@
   .field-err { border-color: var(--danger) !important; box-shadow: 0 0 0 3px rgba(163,45,45,0.12) !important; }
   .actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
   .actions button { font-size: 13px; }
-</style>
+
+  /* 모바일 대응 (좁은 화면에서만 적용, PC는 그대로) */
+  @media (max-width: 600px) {
+    .wrap { padding: 1rem 0.75rem 3rem; }
+    .narrow { margin: 1.5rem auto; }
+    h1 { font-size: 20px; }
+    .card { padding: 1rem 1.1rem; border-radius: 10px; }
+    .grid { grid-template-columns: 1fr; gap: 0.8rem; }
+    .stat-grid { grid-template-columns: 1fr 1fr !important; }
+    .stat .val { font-size: 20px; }
+    .row-between { align-items: stretch; }
+    .filter-group { flex-direction: column; width: 100%; }
+    #ad-rep, #ad-q { width: 100% !important; box-sizing: border-box; }
+    button { padding: 11px 14px; }
+    .actions button { padding: 9px 12px; }
+    .badge { font-size: 11px; padding: 5px 10px; }
+    .rec-row td.k { width: 72px; }
+    input, textarea, select { font-size: 16px; } /* iOS 자동 확대 방지 */
+  }
+</style></style>
 </head>
 <body>
 <div id="root"><div class="status">불러오는 중…</div></div>
@@ -291,14 +310,14 @@ function adminHTML() {
   const list = sorted.length === 0
     ? `<div class="card empty">${state.requests.length === 0 ? "등록된 요청이 없습니다." : "검색 결과가 없습니다."}</div>`
     : sorted.map((r) => recordCardHTML(r, { showRep: true })).join("");
-  return `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:1.5rem">
+  return `<div class="stat-grid" style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:1.5rem">
       <div class="stat"><p class="lbl">전체 요청</p><p class="val">${state.requests.length}건</p></div>
       <div class="stat"><p class="lbl">예정된 납품</p><p class="val">${upcoming}건</p></div>
       <div class="stat"><p class="lbl">영업사원 수</p><p class="val">${reps.length}명</p></div>
     </div>
     <div class="row-between" style="margin-bottom:0.75rem">
       <h2>전체 요청 (납품일순)</h2>
-      <div style="display:flex; gap:8px">
+      <div class="filter-group" style="display:flex; gap:8px">
         <select id="ad-rep" style="width:130px">${opts}</select>
         <input id="ad-q" placeholder="병원·장비·담당자 검색" value="${esc(state.query)}" style="width:200px" />
       </div>
