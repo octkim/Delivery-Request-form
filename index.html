@@ -124,6 +124,11 @@ const REP_EMAILS = {
   "윤동준": "dongjuny@candelamedical.com",
   "김병욱": "byungwookk@candelamedical.com"
 };
+
+// 특정 담당자가 요청하면 추가로 메일을 받을 사람(참조). 이름 → 추가 수신자 이메일 목록
+const CC_BY_REP = {
+  "김성훈": ["sanggeolo@candelamedical.com", "dongjuny@candelamedical.com"]  // 오상걸, 윤동준
+};
 // ════════════════════════════════════════════════════════════════
 // ════════════════════════════════════════════════════════════════
 
@@ -183,10 +188,12 @@ function sendNotifyEmail(r, isEdit, prev) {
     `납품일자: ${fmtDate(r.deliveryDate)} ${r.deliveryTime || ""}\n` +
     `SFDC: ${r.sfdcNumber || "-"} ${r.sfdcUrl || ""}\n` +
     `비고: ${r.note || "-"}`;
-  // 받는 사람: 관리자 + (매핑에 있으면) 요청자 본인. 중복 제거.
+  // 받는 사람: 관리자 + (매핑에 있으면) 요청자 본인 + 담당자별 추가 참조. 중복 제거.
   const recipients = [NOTIFY_EMAIL];
   const repEmail = REP_EMAILS[r.repName];
   if (repEmail && recipients.indexOf(repEmail) === -1) recipients.push(repEmail);
+  const ccList = CC_BY_REP[r.repName] || [];
+  ccList.forEach((addr) => { if (addr && recipients.indexOf(addr) === -1) recipients.push(addr); });
 
   recipients.forEach((addr) => {
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
@@ -343,7 +350,7 @@ function recordCardHTML(r, opts) {
     <table><tbody>${rows}</tbody></table>
     <div class="actions">
       ${o.canEdit ? `<button data-edit="${r.id}"> 수정</button>` : ""}
-      <button class="btn-danger" data-del="${r.id}"> 삭제</button>
+      ${o.canDelete ? `<button class="btn-danger" data-del="${r.id}"> 삭제</button>` : ""}
     </div>
   </div>`;
 }
@@ -442,16 +449,22 @@ function onSubmit() {
   state.errors = errs;
   if (Object.keys(errs).length) { render(); return; }
 
+  const onFail = (e) => {
+    alert("⚠ 저장에 실패했습니다. (메일은 발송되었지만 목록에는 저장되지 않았습니다)\n인터넷 연결을 확인하고 다시 등록해주세요.\n\n오류: " + (e && e.message ? e.message : e));
+  };
+
   if (state.editingId) {
     const existing = state.requests.find((x) => x.id === state.editingId) || {};
     const updated = { ...state.form };
-    requestsRef.child(state.editingId).update(updated);
+    // 메일 먼저 발송 (창을 바로 닫아도 가도록)
     sendNotifyEmail({ ...existing, ...updated, repName: existing.repName || state.user.name }, true, existing);
+    requestsRef.child(state.editingId).update(updated).catch(onFail);
     state.editingId = null;
   } else {
     const newRec = { ...state.form, repName: state.user.name, createdAt: Date.now() };
-    requestsRef.push(newRec);
+    // 메일 먼저 발송 (창을 바로 닫아도 가도록)
     sendNotifyEmail(newRec, false);
+    requestsRef.push(newRec).catch(onFail);
   }
   state.form = blankForm(); state.errors = {};
   render();
